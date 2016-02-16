@@ -11,7 +11,6 @@ use PDO;
 include_once('../app/autoloader.php');
 
 $ticker = new Ticker();
-echo '<pre>';
 $ticker->getData();
 
 class Ticker {
