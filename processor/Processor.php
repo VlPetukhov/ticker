@@ -46,7 +46,7 @@ class Processor {
     public function run()
     {
         foreach ( $this->periods as $perName => $perVal ) {
-            //$this->getAvgYahoo($perName);
+            $this->getAvgYahoo($perName);
             $this->getAvgBtce($perName);
         }
     }
