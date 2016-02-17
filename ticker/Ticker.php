@@ -17,9 +17,11 @@ class Ticker {
 
     const MAX_PERIOD = 15;
 
+    protected $connection;
+
     public function __construct(){
         //create new App instance if no one
-        App::instance();
+        $this->connection = App::instance()->getDb();
     }
 
     public function getData()
@@ -29,18 +31,34 @@ class Ticker {
     }
 
     /**
+     * @param string $tableName
+     *
+     * @return integer
+     */
+    protected function getLastProcessedTime( $tableName )
+    {
+        $sql = "SELECT ts FROM {$tableName} ORDER BY ts DESC LIMIT 1";
+
+        $stmnt = $this->connection->query($sql);
+
+        if ( $stmnt ) {
+
+            return ($stmnt->fetch(PDO::FETCH_ASSOC)) ?: 0;
+        }
+
+        return 0;
+    }
+
+    /**
      * @return array
      */
     protected function getFromYahoo()
     {
         $time = time();
 
-        $sql = "SELECT ts FROM yahoo_statistic ORDER BY ts DESC LIMIT 1";
+        $result = $this->getLastProcessedTime('yahoo_statistic');
 
-        $connection = App::instance()->getDB();
-        $result = $connection->query($sql)->fetch();
-
-        if ( $result && ($time - static::MAX_PERIOD) < $result['ts']) {
+        if ( 0 < $result && ($time - static::MAX_PERIOD) < $result['ts']) {
 
             return false;
         }
@@ -57,9 +75,14 @@ class Ticker {
         $result = json_decode($response);
 
         $sql = "INSERT INTO yahoo_statistic (pair, name, ts, ask, bid) VALUES (:pair, :name, :ts, :ask, :bid)";
-        $stmnt = $connection->prepare($sql);
+        $stmnt = $this->connection->prepare($sql);
 
-        $connection->beginTransaction();
+        if ( !$stmnt ) {
+
+            return false;
+        }
+
+        $this->connection->beginTransaction();
 
         foreach ($result->query->results->rate as $curRes ) {
             $stmnt->bindValue(':pair', $curRes->id, PDO::PARAM_STR);
