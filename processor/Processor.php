@@ -46,7 +46,7 @@ class Processor {
     public function run()
     {
         foreach ( $this->periods as $perName => $perVal ) {
-            //$this->getAvgYahoo($perName);
+            $this->getAvgYahoo($perName);
             $this->getAvgBtce($perName);
         }
     }
@@ -90,6 +90,8 @@ class Processor {
             $periodsEnd = $lastTs + $this->periods[$destPerName];
             $currTime = time();
 
+            $this->connection->beginTransaction();
+
             while ( $periodsEnd <= $currTime ) {
                 //only finished period should get to the avg table!
                 $sql = "SELECT pair, name, AVG(ask) AS avg_ask, AVG(bid) AS avg_bid FROM {$this->yahooStatTbl}
@@ -97,6 +99,8 @@ class Processor {
                 $stmnt = $this->connection->query($sql);
 
                 if ( false === $stmnt ) {
+                    $this->connection->rollBack();
+
                     break;
                 }
 
@@ -126,6 +130,7 @@ class Processor {
                 $periodsEnd = $lastTs + $this->periods[$destPerName];
             }
 
+            $this->connection->commit();
 
             return true;
         }
@@ -161,6 +166,8 @@ class Processor {
         $periodsEnd = $lastTs + $this->periods[$destPerName];
         $currTime = time();
 
+        $this->connection->beginTransaction();
+
         while ( $periodsEnd <= $currTime ) {
             //only finished period should get to the avg table!
             $sql = "SELECT pair,name,AVG(avg_ask) AS avg_ask, AVG(avg_bid) AS avg_bid FROM {$this->yahooAvgTbl}
@@ -168,6 +175,8 @@ class Processor {
             $stmnt = $this->connection->query($sql);
 
             if ( false === $stmnt ) {
+                $this->connection->rollBack();
+
                 break;
             }
 
@@ -196,6 +205,7 @@ class Processor {
             $periodsEnd = $lastTs + $this->periods[$destPerName];
         }
 
+        $this->connection->commit();
 
         return true;
     }
@@ -239,6 +249,8 @@ class Processor {
             $periodsEnd = $lastTs + $this->periods[$destPerName];
             $currTime = time();
 
+            $this->connection->beginTransaction();
+
             while ( $periodsEnd <= $currTime ) {
                 //only finished period should get to the avg table!
                 $sql = "SELECT
@@ -256,6 +268,8 @@ class Processor {
                 $stmnt = $this->connection->query($sql);
 
                 if ( false === $stmnt ) {
+                    $this->connection->rollBack();
+
                     break;
                 }
 
@@ -314,6 +328,7 @@ class Processor {
                 $periodsEnd = $lastTs + $this->periods[$destPerName];
             }
 
+            $this->connection->commit();
 
             return true;
         }
@@ -323,7 +338,7 @@ class Processor {
         //get previous array key from $this->periods
         $subPeriodName = array_keys($this->periods)[array_flip(array_keys($this->periods))[$destPerName] - 1];
         //get last TS from average table
-        $sql = "SELECT ts FROM {$this->btceAvgTbl} WHERE name = {$destPerName} ORDER BY id DESC LIMIT 1";
+        $sql = "SELECT ts FROM {$this->btceAvgTbl} WHERE period = {$destPerName} ORDER BY id DESC LIMIT 1";
         $stmnt = $this->connection->query($sql);
 
         if ( $stmnt ) {
@@ -349,6 +364,8 @@ class Processor {
         $periodsEnd = $lastTs + $this->periods[$destPerName];
         $currTime = time();
 
+        $this->connection->beginTransaction();
+
         while ( $periodsEnd <= $currTime ) {
             //only finished period should get to the avg table!
             $sql = "SELECT
@@ -366,6 +383,8 @@ class Processor {
             $stmnt = $this->connection->query($sql);
 
             if ( false === $stmnt ) {
+                $this->connection->rollBack();
+
                 break;
             }
 
@@ -423,6 +442,7 @@ class Processor {
             $periodsEnd = $lastTs + $this->periods[$destPerName];
         }
 
+        $this->connection->commit();
 
         return true;
     }

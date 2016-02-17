@@ -59,6 +59,8 @@ class Ticker {
         $sql = "INSERT INTO yahoo_statistic (pair, name, ts, ask, bid) VALUES (:pair, :name, :ts, :ask, :bid)";
         $stmnt = $connection->prepare($sql);
 
+        $connection->beginTransaction();
+
         foreach ($result->query->results->rate as $curRes ) {
             $stmnt->bindValue(':pair', $curRes->id, PDO::PARAM_STR);
             $stmnt->bindValue(':name', $curRes->Name, PDO::PARAM_STR);
@@ -70,6 +72,8 @@ class Ticker {
 
             $stmnt->closeCursor();
         }
+
+        $connection->commit();
 
         return true;
     }
