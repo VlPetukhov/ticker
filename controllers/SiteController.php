@@ -10,12 +10,18 @@ namespace controllers;
 
 
 use app\BaseController;
+use models\DataSource;
 
 class SiteController extends BaseController
 {
 
     public function actionIndex()
     {
-        $this->render('index');
+        $this->render('index', ['data' => DataSource::getYahooAvgData('1hour')]);
+    }
+
+    public function actionTicker()
+    {
+        include '../ticker/Ticker.php';
     }
 }
