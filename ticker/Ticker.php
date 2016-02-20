@@ -200,11 +200,11 @@ class Ticker {
             $stmnt->bindValue(':ts', $time, PDO::PARAM_INT);
             $stmnt->bindValue(':ask', $obj->buy);
             $stmnt->bindValue(':bid', $obj->sell);
-            $stmnt->bindValue(':high', $obj->sell);
-            $stmnt->bindValue(':low', $obj->sell);
-            $stmnt->bindValue(':avg_val', $obj->sell);
-            $stmnt->bindValue(':vol', $obj->sell);
-            $stmnt->bindValue(':vol_cur', $obj->sell);
+            $stmnt->bindValue(':high', $obj->high);
+            $stmnt->bindValue(':low', $obj->low);
+            $stmnt->bindValue(':avg_val', $obj->avg);
+            $stmnt->bindValue(':vol', $obj->vol);
+            $stmnt->bindValue(':vol_cur', $obj->vol_cur);
 
             $stmnt->execute();
             $stmnt->closeCursor();
