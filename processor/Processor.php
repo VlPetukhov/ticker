@@ -12,26 +12,22 @@ use PDO;
 
 include_once('../app/autoloader.php');
 
-//$processor = new Processor();
-//$processor->run();
+$processor = new Processor();
+$processor->run();
 
 class Processor {
 
-    protected $connection;
+    protected $_connection;
 
-    protected static $periods = [
-        '5minutes' => 300, //5min
-        '1hour' => 3600, //1hr
-        '4hours' => 14400, // 4hr
-        '24hours' => 86400, // 24hr
-        '1week' => 604800, //1 week
-        '1month' => 2629745, // 30,43686 days - average tropical month length in seconds
-        '1year' => 315556941, // 1year - average tropical year length in seconds
-    ];
+    protected $_periods = [];
+    protected $_currencyPairs = [];
 
     /** Tables description */
     public static $currencyDbInfo = [
         'tableName' => 'currency_pair',
+    ];
+    public static $periodsDbInfo = [
+        'tableName' => 'periods',
     ];
     public static $yahooDbInfo = [
         'rawDataTableName' => 'yahoo_raw_data',
@@ -55,428 +51,446 @@ class Processor {
     ];
 
 
-//    /**
-//     * Constructor
-//     */
-//    public function __construct()
-//    {
-//        $this->yahooStatTbl = static::$yahooStatTblName;
-//        $this->yahooAvgTbl = static::$yahooAvgTblName;
-//        $this->btceStatTbl = static::$btceStatTblName;
-//        $this->btceAvgTbl =  static::$btceAvgTblName ;
-//
-//        $this->connection = App::instance()->getDb();
-//    }
-//
-//    public function run()
-//    {
-//        foreach ( static::$periods as $perName => $perVal ) {
-//            $this->getAvgYahoo($perName);
-//            $this->getAvgBtce($perName);
-//        }
-//    }
-//
-//    protected function getAvgYahoo( $destPerName )
-//    {
-//        if ( !in_array($destPerName, array_keys(static::$periods))) {
-//            return false;
-//        }
-//
-//        $srcTable = ($destPerName === array_keys(static::$periods)[0]) ? $this->yahooStatTbl : $this->yahooAvgTbl;
-//        $lastTs = 0;
-//
-//        //process from the stat table (raw data)
-//        if ( $srcTable === $this->yahooStatTbl ) {
-//
-//            //get last TS from statistic table
-//            $sql = "SELECT ts FROM {$this->yahooAvgTbl} WHERE period = '{$destPerName}' ORDER BY id DESC LIMIT 1";
-//            $stmnt = $this->connection->query($sql);
-//
-//            if ( $stmnt ) {
-//                $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//            }
-//
-//            if (0 === $lastTs) {
-//                //no avg data was made - method should start from the very beginning
-//                $sql = "SELECT ts FROM {$this->yahooStatTbl} ORDER BY id ASC LIMIT 1";
-//                $stmnt = $this->connection->query($sql);
-//
-//                if ( $stmnt ) {
-//                    $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//                }
-//
-//                if ( 0 === $lastTs) {
-//                    //no record in stat table - method should return
-//                    return false;
-//                }
-//            }
-//
-//            // get data from the stat table
-//            $periodsEnd = $lastTs + static::$periods[$destPerName];
-//            $currTime = time();
-//
-//            $this->connection->beginTransaction();
-//
-//            while ( $periodsEnd <= $currTime ) {
-//                //only finished period should get to the avg table!
-//                $sql = "SELECT pair, name, AVG(ask) AS avg_ask, AVG(bid) AS avg_bid FROM {$this->yahooStatTbl}
-//                        WHERE ts > {$lastTs} AND ts <= {$periodsEnd} GROUP BY pair";
-//                $stmnt = $this->connection->query($sql);
-//
-//                if ( false === $stmnt ) {
-//                    $this->connection->rollBack();
-//
-//                    break;
-//                }
-//
-//                $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
-//
-//
-//                if ( !empty($result) ) {
-//                    $sql = "INSERT INTO {$this->yahooAvgTbl} ( pair, name, period, ts, avg_ask, avg_bid )
-//                            VALUES ( :pair, :name, :period, :ts, :avg_ask, :avg_bid )";
-//                    $stmnt = $this->connection->prepare($sql);
-//
-//                    foreach ( $result as $data ){
-//                        $stmnt->execute([
-//                            ':pair'    => $data['pair'],
-//                            ':name'    => $data['name'],
-//                            ':period'  => $destPerName,
-//                            ':ts'      => $periodsEnd,
-//                            ':avg_ask' => $data['avg_ask'],
-//                            ':avg_bid' => $data['avg_bid']
-//                        ]);
-//                    }
-//                }
-//
-//
-//                //set next period
-//                $lastTs = $periodsEnd;
-//                $periodsEnd = $lastTs + static::$periods[$destPerName];
-//            }
-//
-//            $this->connection->commit();
-//
-//            return true;
-//        }
-//
-//
-//        //process from the avg table
-//        //get previous array key from static::$periods
-//        $subPeriodName = array_keys(static::$periods)[array_flip(array_keys(static::$periods))[$destPerName] - 1];
-//        //get last TS from average table
-//        $sql = "SELECT ts FROM {$this->yahooAvgTbl} WHERE name = {$destPerName} ORDER BY id DESC LIMIT 1";
-//        $stmnt = $this->connection->query($sql);
-//
-//        if ( $stmnt ) {
-//            $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//        }
-//
-//        if (0 === $lastTs) {
-//            //no avg data was made - method should start from the very beginning
-//            $sql = "SELECT ts FROM {$this->yahooAvgTbl} WHERE period = '{$subPeriodName}' ORDER BY id ASC LIMIT 1";
-//            $stmnt = $this->connection->query($sql);
-//
-//            if ( $stmnt ) {
-//                $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//            }
-//
-//            if ( 0 === $lastTs) {
-//                //no record in avg table - method should return
-//                return false;
-//            }
-//        }
-//
-//        // get data from the stat table
-//        $periodsEnd = $lastTs + static::$periods[$destPerName];
-//        $currTime = time();
-//
-//        $this->connection->beginTransaction();
-//
-//        while ( $periodsEnd <= $currTime ) {
-//            //only finished period should get to the avg table!
-//            $sql = "SELECT pair,name,AVG(avg_ask) AS avg_ask, AVG(avg_bid) AS avg_bid FROM {$this->yahooAvgTbl}
-//                        WHERE ts > {$lastTs} AND ts <= {$periodsEnd} AND period = '{$subPeriodName}' GROUP BY pair";
-//            $stmnt = $this->connection->query($sql);
-//
-//            if ( false === $stmnt ) {
-//                $this->connection->rollBack();
-//
-//                break;
-//            }
-//
-//            $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
-//
-//            if ( !empty($result) ) {
-//                $sql   = "INSERT INTO {$this->yahooAvgTbl} ( pair, name, period, ts, avg_ask, avg_bid )
-//                            VALUES ( :pair, :name, :period, :ts, :avg_ask, :avg_bid )";
-//                $stmnt = $this->connection->prepare($sql);
-//
-//                foreach ($result as $data) {
-//                    $stmnt->execute([
-//                        ':pair'    => $data['pair'],
-//                        ':name'    => $data['name'],
-//                        ':period'  => $destPerName,
-//                        ':ts'      => $periodsEnd,
-//                        ':avg_ask' => $data['avg_ask'],
-//                        ':avg_bid' => $data['avg_bid']
-//                    ]);
-//                }
-//            }
-//
-//
-//            //set next period
-//            $lastTs = $periodsEnd;
-//            $periodsEnd = $lastTs + static::$periods[$destPerName];
-//        }
-//
-//        $this->connection->commit();
-//
-//        return true;
-//    }
-//
-//    protected function getAvgBtce( $destPerName )
-//    {
-//        if ( !in_array($destPerName, array_keys(static::$periods))) {
-//            return false;
-//        }
-//
-//        $srcTable = ($destPerName === array_keys(static::$periods)[0]) ? $this->btceStatTbl : $this->btceAvgTbl;
-//        $lastTs = 0;
-//
-//        //process from the stat table (raw data)
-//        if ( $srcTable === $this->btceStatTbl ) {
-//
-//            //get last TS from statistic table
-//            $sql = "SELECT ts FROM {$this->btceAvgTbl} WHERE period = '{$destPerName}' ORDER BY id DESC LIMIT 1";
-//            $stmnt = $this->connection->query($sql);
-//
-//            if ( $stmnt ) {
-//                $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//            }
-//
-//            if (0 === $lastTs) {
-//                //no avg data was made - method should start from the very beginning
-//                $sql = "SELECT ts FROM {$this->btceStatTbl} ORDER BY id ASC LIMIT 1";
-//                $stmnt = $this->connection->query($sql);
-//
-//                if ( $stmnt ) {
-//                    $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//                }
-//
-//                if ( 0 === $lastTs) {
-//                    //no record in stat table - method should return
-//                    return false;
-//                }
-//            }
-//
-//            // get data from the stat table
-//            $periodsEnd = $lastTs + static::$periods[$destPerName];
-//            $currTime = time();
-//
-//            $this->connection->beginTransaction();
-//
-//            while ( $periodsEnd <= $currTime ) {
-//                //only finished period should get to the avg table!
-//                $sql = "SELECT
-//                          pair,
-//                          name,
-//                          AVG(ask) AS avg_ask,
-//                          AVG(bid) AS avg_bid,
-//                          AVG(high) AS avg_high,
-//                          AVG(low) AS avg_low,
-//                          AVG(avg_val) AS period_avg_val,
-//                          AVG(vol) AS avg_vol,
-//                          AVG(vol_cur) AS avg_vol_cur
-//                        FROM {$this->btceStatTbl}
-//                        WHERE ts > {$lastTs} AND ts <= {$periodsEnd} GROUP BY pair";
-//                $stmnt = $this->connection->query($sql);
-//
-//                if ( false === $stmnt ) {
-//                    $this->connection->rollBack();
-//
-//                    break;
-//                }
-//
-//                $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
-//
-//
-//                if ( !empty($result) ) {
-//                    $sql = "INSERT INTO {$this->btceAvgTbl} (
-//                              pair,
-//                              name,
-//                              period,
-//                              ts,
-//                              avg_ask,
-//                              avg_bid,
-//                              avg_high,
-//                              avg_low,
-//                              period_avg_val,
-//                              avg_vol,
-//                              avg_vol_cur
-//                            )
-//                            VALUES (
-//                              :pair,
-//                              :name,
-//                              :period,
-//                              :ts,
-//                              :avg_ask,
-//                              :avg_bid,
-//                              :avg_high,
-//                              :avg_low,
-//                              :period_avg_val,
-//                              :avg_vol,
-//                              :avg_vol_cur
-//                            )";
-//                    $stmnt = $this->connection->prepare($sql);
-//
-//                    foreach ( $result as $data ){
-//                        $stmnt->execute([
-//                            ':pair'    => $data['pair'],
-//                            ':name'    => $data['name'],
-//                            ':period'  => $destPerName,
-//                            ':ts'      => $periodsEnd,
-//                            ':avg_ask' => $data['avg_ask'],
-//                            ':avg_bid' => $data['avg_bid'],
-//                            ':avg_high' => $data['avg_high'],
-//                            ':avg_low' => $data['avg_low'],
-//                            ':period_avg_val' => $data['period_avg_val'],
-//                            ':avg_vol' => $data['avg_vol'],
-//                            ':avg_vol_cur' => $data['avg_vol_cur']
-//                        ]);
-//                    }
-//                }
-//
-//
-//                //set next period
-//                $lastTs = $periodsEnd;
-//                $periodsEnd = $lastTs + static::$periods[$destPerName];
-//            }
-//
-//            $this->connection->commit();
-//
-//            return true;
-//        }
-//
-//
-//        //process from the avg table
-//        //get previous array key from static::$periods
-//        $subPeriodName = array_keys(static::$periods)[array_flip(array_keys(static::$periods))[$destPerName] - 1];
-//        //get last TS from average table
-//        $sql = "SELECT ts FROM {$this->btceAvgTbl} WHERE period = {$destPerName} ORDER BY id DESC LIMIT 1";
-//        $stmnt = $this->connection->query($sql);
-//
-//        if ( $stmnt ) {
-//            $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//        }
-//
-//        if (0 === $lastTs) {
-//            //no avg data was made - method should start from the very beginning
-//            $sql = "SELECT ts FROM {$this->btceAvgTbl} WHERE period = '{$subPeriodName}' ORDER BY id ASC LIMIT 1";
-//            $stmnt = $this->connection->query($sql);
-//
-//            if ( $stmnt ) {
-//                $lastTs = ($stmnt->fetch(PDO::FETCH_ASSOC)['ts']) ?: 0;
-//            }
-//
-//            if ( 0 === $lastTs) {
-//                //no record in avg table - method should return
-//                return false;
-//            }
-//        }
-//
-//        // get data from the stat table
-//        $periodsEnd = $lastTs + static::$periods[$destPerName];
-//        $currTime = time();
-//
-//        $this->connection->beginTransaction();
-//
-//        while ( $periodsEnd <= $currTime ) {
-//            //only finished period should get to the avg table!
-//            $sql = "SELECT
-//                      pair,
-//                      name,
-//                      AVG(avg_ask) AS avg_ask,
-//                      AVG(avg_bid) AS avg_bid,
-//                      AVG(avg_high) AS avg_high,
-//                      AVG(avg_low) AS avg_low,
-//                      AVG(period_avg_val) AS period_avg_val,
-//                      AVG(avg_vol) AS avg_vol,
-//                      AVG(avg_vol_cur) AS avg_vol_cur
-//                    FROM {$this->btceAvgTbl}
-//                    WHERE ts > {$lastTs} AND ts <= {$periodsEnd} AND period = '{$subPeriodName}' GROUP BY pair";
-//            $stmnt = $this->connection->query($sql);
-//
-//            if ( false === $stmnt ) {
-//                $this->connection->rollBack();
-//
-//                break;
-//            }
-//
-//            $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
-//
-//            if ( !empty($result) ) {
-//                $sql = "INSERT INTO {$this->btceAvgTbl} (
-//                              pair,
-//                              name,
-//                              period,
-//                              ts,
-//                              avg_ask,
-//                              avg_bid,
-//                              avg_high,
-//                              avg_low,
-//                              period_avg_val,
-//                              avg_vol,
-//                              avg_vol_cur
-//                            )
-//                            VALUES (
-//                              :pair,
-//                              :name,
-//                              :period,
-//                              :ts,
-//                              :avg_ask,
-//                              :avg_bid,
-//                              :avg_high,
-//                              :avg_low,
-//                              :period_avg_val,
-//                              :avg_vol,
-//                              :avg_vol_cur
-//                            )";
-//                $stmnt = $this->connection->prepare($sql);
-//
-//                foreach ( $result as $data ){
-//                    $stmnt->execute([
-//                        ':pair'    => $data['pair'],
-//                        ':name'    => $data['name'],
-//                        ':period'  => $destPerName,
-//                        ':ts'      => $periodsEnd,
-//                        ':avg_ask' => $data['avg_ask'],
-//                        ':avg_bid' => $data['avg_bid'],
-//                        ':avg_high' => $data['avg_high'],
-//                        ':avg_low' => $data['avg_low'],
-//                        ':period_avg_val' => $data['period_avg_val'],
-//                        ':avg_vol' => $data['avg_vol'],
-//                        ':avg_vol_cur' => $data['avg_vol_cur']
-//                    ]);
-//                }
-//            }
-//
-//
-//            //set next period
-//            $lastTs = $periodsEnd;
-//            $periodsEnd = $lastTs + static::$periods[$destPerName];
-//        }
-//
-//        $this->connection->commit();
-//
-//        return true;
-//    }
-//
-//    /**
-//     * @return array
-//     */
-//    public static function getPeriodsNames()
-//    {
-//        return array_keys( static::$periods );
-//    }
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->_connection = App::instance()->getDb();
+
+        $tableName = static::$periodsDbInfo['tableName'];
+        $sql = "SELECT id, value FROM {$tableName}";
+
+        $stmnt = $this->_connection->query($sql);
+        $results = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ( $results as $result ) {
+            $this->_periods[(int)$result['id']] = (int)$result['value'];
+        }
+
+        $currencyDbName = static::$currencyDbInfo['tableName'];
+        $sql = "SELECT id ,pair FROM {$currencyDbName}";
+        $stmnt = $this->_connection->query($sql);
+        $results = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ( $results as $result ) {
+            $this->_currencyPairs[$result['pair']] =(int)$result['id'];
+        }
+    }
+
+    /**
+     * Main method for data processing
+     */
+    public function run()
+    {
+        foreach ( $this->_periods as $perId => $perVal ) {
+            $this->getAvgYahoo($perId);
+            $this->getAvgBtce($perId);
+        }
+    }
+
+    /**
+     * Tries to get last processed time
+     *
+     * @param int    $destPerId
+     * @param string $tableName
+     * @param string $fieldName
+     *
+     * @return bool|int
+     */
+    protected function getLastTsForPeriod( $destPerId, $tableName, $fieldName = 'ts' )
+    {
+        $sql = "SELECT {$fieldName} FROM {$tableName} WHERE period_id = {$destPerId} ORDER BY id DESC LIMIT 1";
+
+        $stmnt = $this->_connection->query($sql);
+
+        if ( $stmnt ) {
+            $result = $stmnt->fetch(PDO::FETCH_ASSOC)[$fieldName];
+            if ( $result ) {
+
+                return (int)$result;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Tries to get last processed time from raw data table
+     * @param string $tableName
+     * @param string $fieldName
+     *
+     * @return bool|int
+     */
+    protected function getLastTsForRawData( $tableName, $fieldName = 'ts' )
+    {
+        $sql = "SELECT {$fieldName} FROM {$tableName} ORDER BY id ASC LIMIT 1";
+        $stmnt = $this->_connection->query($sql);
+
+        if ( $stmnt ) {
+            $result = $stmnt->fetch(PDO::FETCH_ASSOC)[$fieldName];
+            if ( $result ) {
+
+                return (int)$result;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Calculates average period values for currency pairs
+     * @param $destPerId
+     *
+     * @return bool
+     */
+    protected function getAvgYahoo( $destPerId )
+    {
+        if ( !in_array($destPerId, array_keys($this->_periods))) {
+            return false;
+        }
+
+        $rawTableName = static::$yahooDbInfo['rawDataTableName'];
+        $avgTableName = static::$yahooDbInfo['statTableName'];
+
+        $srcTable = ($destPerId === array_keys($this->_periods)[0]) ? $rawTableName : $avgTableName;
+        $lastTs = 0;
+
+        //process from the stat table (raw data)
+        if ( $srcTable === static::$yahooDbInfo['rawDataTableName'] ) {
+
+             $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+
+            if (false === $lastTs) {
+                //no avg data was made - method should start from the very beginning
+                $lastTs = $this->getLastTsForRawData($rawTableName);
+
+                if ( false === $lastTs) {
+                    //no record in stat table - method should return
+                    return false;
+                }
+            }
+
+            // get data from the stat table
+            $periodsEnd = $lastTs + $this->_periods[$destPerId];
+            $currTime = time();
+
+            $this->_connection->beginTransaction();
+
+            while ( $periodsEnd <= $currTime ) {
+                //only finished period should get to the avg table!
+                $sql = "SELECT pair_id, AVG(ask) AS ask, AVG(bid) AS bid FROM {$rawTableName}
+                        WHERE ts > {$lastTs} AND ts <= {$periodsEnd} GROUP BY pair_id";
+                $stmnt = $this->_connection->query($sql);
+
+                if ( false === $stmnt ) {
+                    $this->_connection->rollBack();
+
+                    break;
+                }
+
+                $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+                if ( !empty($result) ) {
+                    $sql = "INSERT INTO {$avgTableName} ( pair_id, period_id, ts, ask, bid )
+                            VALUES ( :pair_id, :period_id, :ts, :ask, :bid )";
+                    $stmnt = $this->_connection->prepare($sql);
+
+                    foreach ( $result as $data ){
+                        $stmnt->execute([
+                            ':pair_id'    => (int)$data['pair_id'],
+                            ':period_id'  => (int)$destPerId,
+                            ':ts'      => $periodsEnd,
+                            ':ask' => (float)$data['ask'],
+                            ':bid' => (float)$data['bid']
+                        ]);
+                    }
+                }
+                //set next period
+                $lastTs = $periodsEnd;
+                $periodsEnd = $lastTs + $this->_periods[$destPerId];
+            }
+
+            $this->_connection->commit();
+
+            return true;
+        }
+
+        //process from the avg table
+        //get previous array key from $this->_periods
+        $subPeriodId = array_keys($this->_periods)[array_flip(array_keys($this->_periods))[$destPerId] - 1];
+
+        //get last TS from average table
+        $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+
+        if (false === $lastTs) {
+            //no avg data was made - method should start from the very beginning
+            $lastTs = $this->getLastTsForPeriod($subPeriodId, $avgTableName);
+
+            if ( false === $lastTs) {
+                //no record in avg table - method should return
+                return false;
+            }
+        }
+
+        // get data from the stat table
+        $periodsEnd = $lastTs + $this->_periods[$destPerId];
+        $currTime = time();
+
+        $this->_connection->beginTransaction();
+
+        while ( $periodsEnd <= $currTime ) {
+            //only finished period should get to the avg table!
+            $sql = "SELECT pair_id, AVG(ask) AS ask, AVG(bid) AS bid FROM {$avgTableName}
+                        WHERE ts > {$lastTs} AND ts <= {$periodsEnd} AND period_id = '{$subPeriodId}' GROUP BY pair_id";
+            $stmnt = $this->_connection->query($sql);
+
+            if ( false === $stmnt ) {
+                $this->_connection->rollBack();
+
+                break;
+            }
+
+            $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+            if ( !empty($result) ) {
+                $sql   = "INSERT INTO {$avgTableName} ( pair_id, period_id, ts, ask, bid )
+                            VALUES ( :pair_id, :period_id, :ts, :ask, :bid )";
+                $stmnt = $this->_connection->prepare($sql);
+
+                foreach ($result as $data) {
+                    $stmnt->execute([
+                        ':pair_id'   => (int)$data['pair_id'],
+                        ':period_id' => $destPerId,
+                        ':ts'        => $periodsEnd,
+                        ':ask'       => (float)$data['ask'],
+                        ':bid'       => (float)$data['bid']
+                    ]);
+                }
+            }
+
+
+            //set next period
+            $lastTs = $periodsEnd;
+            $periodsEnd = $lastTs + $this->_periods[$destPerId];
+        }
+
+        $this->_connection->commit();
+
+        return true;
+    }
+
+    /**
+     * Calculates average period values for currency pairs
+     * @param $destPerId
+     *
+     * @return bool
+     */
+    protected function getAvgBtce( $destPerId )
+    {
+        if ( !in_array($destPerId, array_keys($this->_periods))) {
+            return false;
+        }
+
+        $rawTableName = static::$btceDbInfo['rawDataTableName'];
+        $avgTableName = static::$btceDbInfo['statTableName'];
+
+        $srcTable = ($destPerId === array_keys($this->_periods)[0]) ? $rawTableName : $avgTableName;
+        $lastTs = 0;
+
+        //process from the stat table (raw data)
+        if ( $srcTable === static::$btceDbInfo['rawDataTableName'] ) {
+
+             $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+
+            if (false === $lastTs) {
+                //no avg data was made - method should start from the very beginning
+                $lastTs = $this->getLastTsForRawData($rawTableName);
+
+                if ( false === $lastTs) {
+                    //no record in stat table - method should return
+                    return false;
+                }
+            }
+
+            // get data from the stat table
+            $periodsEnd = $lastTs + $this->_periods[$destPerId];
+            $currTime = time();
+
+            $this->_connection->beginTransaction();
+
+            while ( $periodsEnd <= $currTime ) {
+            //only finished period should get to the avg table!
+            $sql = "SELECT
+                      pair_id,
+                      AVG(ask) AS ask,
+                      AVG(bid) AS bid,
+                      AVG(high) AS high,
+                      AVG(low) AS low,
+                      AVG(avg_val) AS avg_val,
+                      AVG(vol) AS vol,
+                      AVG(vol_cur) AS vol_cur
+                    FROM {$rawTableName}
+                    WHERE ts > {$lastTs} AND ts <= {$periodsEnd} GROUP BY pair_id";
+            $stmnt = $this->_connection->query($sql);
+
+            if ( false === $stmnt ) {
+                $this->_connection->rollBack();
+
+                break;
+            }
+
+            $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+            if ( !empty($result) ) {
+                $sql = "INSERT INTO {$avgTableName} (
+                              pair_id,
+                              period_id,
+                              ts,
+                              ask,
+                              bid,
+                              high,
+                              low,
+                              avg_val,
+                              vol,
+                              vol_cur
+                            )
+                            VALUES (
+                              :pair_id,
+                              :period_id,
+                              :ts,
+                              :ask,
+                              :bid,
+                              :high,
+                              :low,
+                              :avg_val,
+                              :vol,
+                              :vol_cur
+                            )";
+                $stmnt = $this->_connection->prepare($sql);
+
+                foreach ($result as $data) {
+                    $stmnt->execute([
+                        ':pair_id'   => (int)$data['pair_id'],
+                        ':period_id' => (int)$destPerId,
+                        ':ts'        => $periodsEnd,
+                        ':ask'       => (float)$data['ask'],
+                        ':bid'       => (float)$data['bid'],
+                        ':high'      => (float)$data['high'],
+                        ':low'       => (float)$data['low'],
+                        ':avg_val'   => (float)$data['avg_val'],
+                        ':vol'       => (float)$data['vol'],
+                        ':vol_cur'   => (float)$data['vol_cur']
+                    ]);
+                }
+            }
+                //set next period
+                $lastTs = $periodsEnd;
+                $periodsEnd = $lastTs + $this->_periods[$destPerId];
+            }
+
+            $this->_connection->commit();
+
+            return true;
+        }
+
+        //process from the avg table
+        //get previous array key from $this->_periods
+        $subPeriodId = array_keys($this->_periods)[array_flip(array_keys($this->_periods))[$destPerId] - 1];
+
+        //get last TS from average table
+        $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+
+        if (false === $lastTs) {
+            //no avg data was made - method should start from the very beginning
+            $lastTs = $this->getLastTsForPeriod($subPeriodId, $avgTableName);
+
+            if ( false === $lastTs) {
+                //no record in avg table - method should return
+                return false;
+            }
+        }
+
+        // get data from the stat table
+        $periodsEnd = $lastTs + $this->_periods[$destPerId];
+        $currTime = time();
+
+        $this->_connection->beginTransaction();
+
+        while ( $periodsEnd <= $currTime ) {
+            //only finished period should get to the avg table!
+            $sql = "SELECT
+                      pair_id,
+                      AVG(ask) AS ask,
+                      AVG(bid) AS bid,
+                      AVG(high) AS high,
+                      AVG(low) AS low,
+                      AVG(avg_val) AS avg_val,
+                      AVG(vol) AS vol,
+                      AVG(vol_cur) AS vol_cur
+                    FROM {$avgTableName}
+                    WHERE ts > {$lastTs} AND ts <= {$periodsEnd} AND period_id = {$subPeriodId} GROUP BY pair_id";
+            $stmnt = $this->_connection->query($sql);
+
+            if ( false === $stmnt ) {
+                $this->_connection->rollBack();
+
+                break;
+            }
+
+            $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+            if ( !empty($result) ) {
+                $sql = "INSERT INTO {$avgTableName} (
+                              pair_id,
+                              period_id,
+                              ts,
+                              ask,
+                              bid,
+                              high,
+                              low,
+                              avg_val,
+                              vol,
+                              vol_cur
+                            )
+                            VALUES (
+                              :pair_id,
+                              :period_id,
+                              :ts,
+                              :ask,
+                              :bid,
+                              :high,
+                              :low,
+                              :avg_val,
+                              :vol,
+                              :vol_cur
+                            )";
+                $stmnt = $this->_connection->prepare($sql);
+
+                foreach ( $result as $data ){
+                    $stmnt->execute([
+                        ':pair_id'    => (int)$data['pair_id'],
+                        ':period_id'  => (int)$destPerId,
+                        ':ts'      => $periodsEnd,
+                        ':ask' => (float)$data['ask'],
+                        ':bid' => (float)$data['bid'],
+                        ':high' => (float)$data['high'],
+                        ':low' => (float)$data['low'],
+                        ':avg_val' => (float)$data['avg_val'],
+                        ':vol' => (float)$data['vol'],
+                        ':vol_cur' => (float)$data['vol_cur']
+                    ]);
+                }
+            }
+
+            //set next period
+            $lastTs = $periodsEnd;
+            $periodsEnd = $lastTs + $this->_periods[$destPerId];
+        }
+
+        $this->_connection->commit();
+
+        return true;
+    }
+
 } 
