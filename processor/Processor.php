@@ -100,7 +100,7 @@ class Processor {
      */
     protected function getLastTsForPeriod( $destPerId, $tableName, $fieldName = 'ts' )
     {
-        $sql = "SELECT {$fieldName} FROM {$tableName} WHERE period_id = {$destPerId} ORDER BY id DESC LIMIT 1";
+        $sql = "SELECT {$fieldName} FROM {$tableName} WHERE period_id = {$destPerId} ORDER BY {$fieldName} DESC LIMIT 1";
 
         $stmnt = $this->_connection->query($sql);
 
@@ -124,7 +124,7 @@ class Processor {
      */
     protected function getLastTsForRawData( $tableName, $fieldName = 'ts' )
     {
-        $sql = "SELECT {$fieldName} FROM {$tableName} ORDER BY id ASC LIMIT 1";
+        $sql = "SELECT {$fieldName} FROM {$tableName} ORDER BY {$fieldName} DESC LIMIT 1";
         $stmnt = $this->_connection->query($sql);
 
         if ( $stmnt ) {
