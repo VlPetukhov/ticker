@@ -9,11 +9,6 @@ use app\App;
 use PDO;
 use processor\Processor;
 
-include_once('../app/autoloader.php');
-
-$ticker = new Ticker();
-$ticker->getData();
-
 class Ticker {
 
     const MAX_PERIOD = 15;

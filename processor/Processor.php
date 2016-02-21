@@ -10,10 +10,6 @@ namespace processor;
 use app\App;
 use PDO;
 
-include_once('../app/autoloader.php');
-
-$processor = new Processor();
-$processor->run();
 
 class Processor {
 
