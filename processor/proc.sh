@@ -1,3 +1,3 @@
 #!/bin/bash
-
-php /var/www/ticker/processor/Processor.php
+cd /var/www/ticker/processor/
+php /var/www/ticker/processor/runProcessor.php
