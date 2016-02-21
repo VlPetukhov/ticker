@@ -8,7 +8,7 @@
 ?>
 
 <h2>Yahoo average currency data for period of <?=$periodName;?></h2>
-<table>
+<table class="table-bordered table-hover">
     <tr>
         <th>Data</th>
         <th>Name</th>
