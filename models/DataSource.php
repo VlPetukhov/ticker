@@ -48,11 +48,14 @@ class DataSource{
 
         $connection = App::instance()->getDb();
         $tableName = Processor::$yahooDbInfo['statTableName'];
+        $currencytableName = Processor::$currencyDbInfo['tableName'];
         $tsQuery = '';
         $tsQuery .= ($dateStart) ? ' AND ts >= ' . (int)$dateStart : '';
         $tsQuery .= ($dateEnd) ? ' AND ts <= ' . (int)$dateEnd : '';
 
-        $sql = "SELECT name, ts, avg_ask, avg_bid FROM {$tableName} WHERE period_id = {$periodId} {$tsQuery}";
+        $sql = "SELECT cp.name AS name, ts, ask, bid FROM {$tableName} AS st
+                INNER JOIN {$currencytableName} AS cp ON cp.id = st.pair_id
+                WHERE st.period_id = {$periodId} {$tsQuery}";
         $stmnt = $connection->query($sql);
 
         if ( !$stmnt ) {

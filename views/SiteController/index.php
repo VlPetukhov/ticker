@@ -18,8 +18,8 @@
     <tr>
         <td><?=date('d-m-Y H:i:s', $entree['ts']);?></td>
         <td><?=$entree['name'];?></td>
-        <td><?=$entree['avg_ask'];?></td>
-        <td><?=$entree['avg_bid'];?></td>
+        <td><?=$entree['ask'];?></td>
+        <td><?=$entree['bid'];?></td>
     </tr>
     <?php endforeach;?>
 </table>
