@@ -1,12 +1,13 @@
 <?php
 /**
  * Index view
+ * @var string $periodName
  * @var array $data
  */
 
 ?>
 
-<h2>Yahoo hourly data</h2>
+<h2>Yahoo average currency data for period of <?=$periodName;?></h2>
 <table>
     <tr>
         <th>Data</th>

@@ -17,7 +17,18 @@ class SiteController extends BaseController
 
     public function actionIndex()
     {
+        if ( isset ($_GET['periodId'])) {
+            $periodId = (int)$_GET['periodId'];
+        } else {
+            $periodId = 2; //hourly
+        }
+
         $dataSource = new DataSource();
-        $this->render('index', ['data' => $dataSource->getYahooAvgData(2)]);
+        $this->render(
+            'index',
+            [
+                'periodName' => $dataSource->getPeriodName($periodId),
+                'data' => $dataSource->getYahooAvgData($periodId),
+            ]);
     }
 }

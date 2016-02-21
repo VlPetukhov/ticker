@@ -67,4 +67,16 @@ class DataSource{
 
         return $result;
     }
+
+    public function getPeriodName($periodId)
+    {
+        $periodId = (int)$periodId;
+
+        if ( !in_array($periodId, array_keys($this->_periods))) {
+
+            return 'Unknown period ID.';
+        }
+
+        return $this->_periods[$periodId]['name'];
+    }
 } 
