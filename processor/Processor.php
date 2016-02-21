@@ -86,7 +86,7 @@ class Processor {
     }
 
     /**
-     * Tries to get last processed time
+     * Tries to get last data time
      *
      * @param int    $destPerId
      * @param string $tableName
@@ -94,9 +94,20 @@ class Processor {
      *
      * @return bool|int
      */
-    protected function getLastTsForPeriod( $destPerId, $tableName, $fieldName = 'ts' )
+    protected function getLastTs( $tableName, $destPerId = null, $fieldName = 'ts')
     {
-        $sql = "SELECT {$fieldName} FROM {$tableName} WHERE period_id = {$destPerId} ORDER BY {$fieldName} DESC LIMIT 1";
+        if (
+            $destPerId &&
+            (
+                static::$yahooDbInfo['statTableName'] === $tableName ||
+                static::$btceDbInfo['statTableName'] === $tableName
+            )
+        ) {
+
+            $where = "WHERE period_id = {$destPerId}";
+        }
+
+        $sql = "SELECT {$fieldName} FROM {$tableName} {$where} ORDER BY {$fieldName} DESC LIMIT 1";
 
         $stmnt = $this->_connection->query($sql);
 
@@ -112,15 +123,29 @@ class Processor {
     }
 
     /**
-     * Tries to get last processed time from raw data table
+     * Tries to get first data time
+     *
+     * @param int    $destPerId
      * @param string $tableName
      * @param string $fieldName
      *
      * @return bool|int
      */
-    protected function getLastTsForRawData( $tableName, $fieldName = 'ts' )
+    protected function getFirstTs( $tableName, $destPerId = null, $fieldName = 'ts')
     {
-        $sql = "SELECT {$fieldName} FROM {$tableName} ORDER BY {$fieldName} DESC LIMIT 1";
+        if (
+            $destPerId &&
+            (
+                static::$yahooDbInfo['statTableName'] === $tableName ||
+                static::$btceDbInfo['statTableName'] === $tableName
+            )
+        ) {
+
+            $where = "WHERE period_id = {$destPerId}";
+        }
+
+        $sql = "SELECT {$fieldName} FROM {$tableName} {$where} ORDER BY {$fieldName} ASC LIMIT 1";
+
         $stmnt = $this->_connection->query($sql);
 
         if ( $stmnt ) {
@@ -155,11 +180,11 @@ class Processor {
         //process from the stat table (raw data)
         if ( $srcTable === static::$yahooDbInfo['rawDataTableName'] ) {
 
-             $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+             $lastTs = $this->getLastTs($avgTableName, $destPerId);
 
             if (false === $lastTs) {
                 //no avg data was made - method should start from the very beginning
-                $lastTs = $this->getLastTsForRawData($rawTableName);
+                $lastTs = $this->getFirstTs($rawTableName);
 
                 if ( false === $lastTs) {
                     //no record in stat table - method should return
@@ -217,11 +242,11 @@ class Processor {
         $subPeriodId = array_keys($this->_periods)[array_flip(array_keys($this->_periods))[$destPerId] - 1];
 
         //get last TS from average table
-        $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+        $lastTs = $this->getLastTs($avgTableName, $destPerId);
 
         if (false === $lastTs) {
             //no avg data was made - method should start from the very beginning
-            $lastTs = $this->getLastTsForPeriod($subPeriodId, $avgTableName);
+            $lastTs = $this->getFirstTs($avgTableName, $subPeriodId);
 
             if ( false === $lastTs) {
                 //no record in avg table - method should return
@@ -297,11 +322,11 @@ class Processor {
         //process from the stat table (raw data)
         if ( $srcTable === static::$btceDbInfo['rawDataTableName'] ) {
 
-             $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+             $lastTs = $this->getLastTs($avgTableName, $destPerId);
 
             if (false === $lastTs) {
                 //no avg data was made - method should start from the very beginning
-                $lastTs = $this->getLastTsForRawData($rawTableName);
+                $lastTs = $this->getFirstTs($rawTableName);
 
                 if ( false === $lastTs) {
                     //no record in stat table - method should return
@@ -395,11 +420,11 @@ class Processor {
         $subPeriodId = array_keys($this->_periods)[array_flip(array_keys($this->_periods))[$destPerId] - 1];
 
         //get last TS from average table
-        $lastTs = $this->getLastTsForPeriod($destPerId, $avgTableName);
+        $lastTs = $this->getLastTs($avgTableName, $destPerId);
 
         if (false === $lastTs) {
             //no avg data was made - method should start from the very beginning
-            $lastTs = $this->getLastTsForPeriod($subPeriodId, $avgTableName);
+            $lastTs = $this->getFirstTs($avgTableName, $subPeriodId);
 
             if ( false === $lastTs) {
                 //no record in avg table - method should return

@@ -11,7 +11,7 @@ use processor\Processor;
 
 class Ticker {
 
-    const MAX_PERIOD = 15;
+    const MAX_PERIOD = 10;
 
     protected $_connection;
     protected $_currencyPairs = [];
