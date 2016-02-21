@@ -15,19 +15,44 @@ use processor\Processor;
 
 class DataSource{
 
-    public static function getYahooAvgData( $period, $dateStart = null, $dateEnd = null )
+    protected $_connection;
+
+    protected $_periods = [];
+
+    public function __construct()
     {
-        if ( !in_array($period, Processor::getPeriodsNames())) {
-            throw new \Exception('Parameter error. Wrong period.');
+
+        $this->_connection = App::instance()->getDb();
+
+        $tableName = Processor::$periodsDbInfo['tableName'];
+        $sql = "SELECT id, value, name FROM {$tableName}";
+
+        $stmnt = $this->_connection->query($sql);
+        $results = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ( $results as $result ) {
+            $this->_periods[(int)$result['id']] = [
+                'value' => (int)$result['value'],
+                'name' => $result['name'],
+            ];
+        }
+    }
+
+    public function getYahooAvgData( $periodId, $dateStart = null, $dateEnd = null )
+    {
+        $periodId = (int)$periodId;
+
+        if ( !in_array($periodId, array_keys($this->_periods))) {
+            throw new \Exception('Parameter error. Wrong period ID.');
         }
 
         $connection = App::instance()->getDb();
-        $tableName = Processor::$yahooAvgTblName;
+        $tableName = Processor::$yahooDbInfo['statTableName'];
         $tsQuery = '';
         $tsQuery .= ($dateStart) ? ' AND ts >= ' . (int)$dateStart : '';
         $tsQuery .= ($dateEnd) ? ' AND ts <= ' . (int)$dateEnd : '';
 
-        $sql = "SELECT name, ts, avg_ask, avg_bid FROM {$tableName} WHERE period = '{$period}' {$tsQuery}";
+        $sql = "SELECT name, ts, avg_ask, avg_bid FROM {$tableName} WHERE period_id = {$periodId} {$tsQuery}";
         $stmnt = $connection->query($sql);
 
         if ( !$stmnt ) {

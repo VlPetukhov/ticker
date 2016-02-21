@@ -17,11 +17,7 @@ class SiteController extends BaseController
 
     public function actionIndex()
     {
-        $this->render('index', ['data' => DataSource::getYahooAvgData('1hour')]);
-    }
-
-    public function actionTicker()
-    {
-        include '../ticker/Ticker.php';
+        $dataSource = new DataSource();
+        $this->render('index', ['data' => $dataSource->getYahooAvgData(2)]);
     }
 }
