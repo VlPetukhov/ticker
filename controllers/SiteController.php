@@ -28,7 +28,8 @@ class SiteController extends BaseController
             'index',
             [
                 'periodName' => $dataSource->getPeriodName($periodId),
-                'data' => $dataSource->getYahooAvgData($periodId),
+                'yahooData' => $dataSource->getYahooAvgData($periodId),
+                'btceData' => $dataSource->getBtceAvgData($periodId),
             ]);
     }
 }

@@ -68,6 +68,37 @@ class DataSource{
         return $result;
     }
 
+
+    public function getBtceAvgData( $periodId, $dateStart = null, $dateEnd = null )
+    {
+        $periodId = (int)$periodId;
+
+        if ( !in_array($periodId, array_keys($this->_periods))) {
+            throw new \Exception('Parameter error. Wrong period ID.');
+        }
+
+        $connection = App::instance()->getDb();
+        $tableName = Processor::$btceDbInfo['statTableName'];
+        $currencytableName = Processor::$currencyDbInfo['tableName'];
+        $tsQuery = '';
+        $tsQuery .= ($dateStart) ? ' AND ts >= ' . (int)$dateStart : '';
+        $tsQuery .= ($dateEnd) ? ' AND ts <= ' . (int)$dateEnd : '';
+
+        $sql = "SELECT cp.name AS name, ts, ask, bid, high, low, avg_val, vol, vol_cur FROM {$tableName} AS st
+                LEFT JOIN {$currencytableName} AS cp ON cp.id = st.pair_id
+                WHERE st.period_id = {$periodId} {$tsQuery}";
+        $stmnt = $connection->query($sql);
+
+        if ( !$stmnt ) {
+
+            return [];
+        }
+
+        $result = $stmnt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $result;
+    }
+
     public function getPeriodName($periodId)
     {
         $periodId = (int)$periodId;
